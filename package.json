@@ -9,7 +9,7 @@
     "start": "node server.js",
     "dev": "node server.js",
     "build:knowledge": "node tools/build-knowledge.js",
-    "check:knowledge": "node tools/build-course.js && node tools/build-nodes.js && node tools/build-knowledge.js && git diff --exit-code -- public/frontend-build-agent/knowledge.json public/frontend-build-agent/core.js public/frontend-build-agent/nodes.json",
+    "check:knowledge": "node tools/build-course.js && node tools/build-nodes.js && node tools/build-knowledge.js && git diff --exit-code -- public/frontend-agent/knowledge.json public/frontend-agent/core.js public/frontend-agent/nodes.json",
     "build:course": "node tools/build-course.js",
     "build:nodes": "node tools/build-nodes.js"
   },

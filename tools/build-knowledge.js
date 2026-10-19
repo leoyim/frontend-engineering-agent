@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * 把 knowledge/ 下的 Markdown 预处理成
- * public/frontend-build-agent/knowledge.json。
+ * public/frontend-agent/knowledge.json。
  *
  * 为什么要有这一步，而不是让两端各自读 Markdown：
  * 服务端有 fs，浏览器没有 —— 浏览器只能读一份提前准备好的数据。
@@ -9,7 +9,7 @@
  * 同一个问题在本地跑和部署到 Pages 上会检索到不同资料。
  * 所以分块只在这里做一次，产物由两端共用。
  *
- * 分块规则本身来自共用内核 public/frontend-build-agent/core.js，
+ * 分块规则本身来自共用内核 public/frontend-agent/core.js，
  * 不是这个脚本自定义的。
  */
 'use strict';
@@ -19,8 +19,8 @@ const path = require('node:path');
 
 const ROOT = path.join(__dirname, '..');
 // 应用在 public/ 下的子目录。线上与本地共用这一层：应用地址是
-// /frontend-build-agent/，站点根只放一个跳转页。
-const APP_DIR = path.join('public', 'frontend-build-agent');
+// /frontend-agent/，站点根只放一个跳转页。
+const APP_DIR = path.join('public', 'frontend-agent');
 const KB_DIR = process.env.KNOWLEDGE_DIR || path.join(ROOT, 'knowledge');
 const OUT = path.join(ROOT, APP_DIR, 'knowledge.json');
 

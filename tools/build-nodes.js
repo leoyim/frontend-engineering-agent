@@ -20,7 +20,7 @@ const path = require('node:path');
 
 const ROOT = path.join(__dirname, '..');
 const MAP = path.join(ROOT, 'knowledge', 'KNOWLEDGE_MAP.md');
-const OUT = path.join(ROOT, 'public', 'frontend-build-agent', 'nodes.json');
+const OUT = path.join(ROOT, 'public', 'frontend-agent', 'nodes.json');
 
 const DOMAIN_NAMES = {
   D0: '入门基础',
