@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="light dark" />
 <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f3f4fb" />
 <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0b0b12" />
-<title>前端打包构建学习助手</title>
+<title>前端工程化学习助手</title>
 <link rel="stylesheet" href="styles.css" />
 <!-- 标签页图标与侧栏品牌位共用同一个文件。两处各画一份的代价是迟早有一天它们会对不上 -->
 <link rel="icon" href="logo.svg" type="image/svg+xml" />
@@ -21,7 +21,7 @@
       <!-- 标记底色在 logo.svg 里，不靠 CSS 渐变：favicon 读不到 CSS 变量 -->
       <div class="brand-mark"><img src="logo.svg" alt="" width="34" height="34" /></div>
       <div>
-        <div class="brand-name">前端打包构建学习助手</div>
+        <div class="brand-name">前端工程化学习助手</div>
         <div class="brand-sub">零基础也能懂 · 一节一练</div>
       </div>
     </div>
@@ -30,7 +30,7 @@
     <section class="panel">
       <div class="panel-head">
         <span>学习进度</span>
-        <span id="progress-fraction" class="mono">0 / 22</span>
+        <span id="progress-fraction" class="mono">0 / 42</span>
       </div>
       <div class="bar" id="progress-track" role="progressbar"
            aria-label="学习进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
@@ -46,7 +46,14 @@
 
     <!-- 课程清单 -->
     <section class="panel grow">
-      <div class="panel-head"><span>课程结构</span><span class="dim mono" id="course-count"></span></div>
+      <div class="panel-head">
+        <span>课程结构</span>
+        <span class="mode-switch" role="group" aria-label="课程模式">
+          <button type="button" class="mode-btn" id="mode-chapter" title="固定 42 章的课表">章表</button>
+          <button type="button" class="mode-btn" id="mode-plan" title="按需组装的一条路径">计划</button>
+        </span>
+      </div>
+      <div class="dim mono course-count" id="course-count"></div>
       <div id="course-list" class="course-list"></div>
     </section>
 
@@ -89,6 +96,7 @@
       </div>
       <div class="topbar-right">
         <span id="kb-info" class="dim tiny"></span>
+        <button id="btn-plan" class="btn ghost" type="button">按需组课</button>
         <button id="btn-guide" class="btn ghost" type="button">使用说明</button>
         <button id="btn-settings" class="btn ghost" type="button">模型设置</button>
       </div>
@@ -185,6 +193,32 @@
       <button type="button" id="btn-guide-start" class="btn primary">知道了，开始学</button>
     </div>
   </div>
+</dialog>
+
+<dialog id="plan" aria-labelledby="plan-title">
+  <form id="plan-form" method="dialog">
+    <h2 id="plan-title">按需组课</h2>
+    <p class="dim plan-hint">选领域与层级，生成一条**满足前置依赖**的路径。生成后会**切到计划模式** —— 进度条的分母会变成这条路径的节数；章表那边的进度**不会被改动**，随时可切回。</p>
+
+    <div class="plan-group-title">领域</div>
+    <div id="plan-domains" class="plan-grid"></div>
+
+    <div class="plan-group-title">层级</div>
+    <div id="plan-levels" class="plan-grid"></div>
+
+    <div class="plan-row">
+      <label for="plan-max">上限</label>
+      <input id="plan-max" type="number" min="0" max="179" value="20" inputmode="numeric">
+      <span class="dim">节点（含前置）；填 0 表示不限</span>
+    </div>
+
+    <div id="plan-note" class="dim plan-note"></div>
+
+    <div class="dialog-actions">
+      <button type="button" id="btn-plan-close" class="btn ghost">取消</button>
+      <button type="button" id="btn-plan-go" class="btn primary">生成路径</button>
+    </div>
+  </form>
 </dialog>
 
 <!-- 礼花 / 烟花画布：不拦截鼠标事件，只负责庆祝 -->

@@ -8,7 +8,7 @@ link_check.py — 电子书链接与结构检查
 检查项:
     1. 所有相对 Markdown 链接的目标文件是否存在
     2. 是否存在空的 .md 文件
-    3. 是否存在 TODO / 占位内容
+    3. 是否存在 TODO / 占位内容（TBD 仅在带冒号或方括号时算，见下方注释）
     4. 标题层级是否跳跃（例如 H2 直接跳到 H4）
     5. 图片引用路径是否存在
 """
@@ -20,7 +20,10 @@ from pathlib import Path
 LINK_RE = re.compile(r'\[([^\]]*)\]\(([^)]+)\)')
 IMG_RE = re.compile(r'!\[([^\]]*)\]\(([^)]+)\)')
 HEADING_RE = re.compile(r'^(#{1,6})\s+(.*)$')
-PLACEHOLDER_RE = re.compile(r'(\[TODO|TODO:|TBD|FIXME|XXX:)')
+# 说明：TBD 仅在带冒号或方括号时视为占位符。
+# 原因：TBD 在本项目里也是「Trunk Based Development」的常用缩写
+# （见 chapters/d1-02-commit-and-collaboration.md §2.5），裸词会误报。
+PLACEHOLDER_RE = re.compile(r'(\[TODO|TODO:|\[TBD|TBD:|FIXME|XXX:)')
 
 # 这些链接是外部地址或纯锚点，不检查
 IGNORE_PREFIXES = ('http://', 'https://', 'mailto:', '#')

@@ -29,11 +29,19 @@ jobs:
 
       # 语料改过却忘了重新生成 knowledge.json 的话，站点会用旧资料作答，
       # 而且页面上不会有任何异常 —— 这条检查就是为了拦住这种静默过期。
-      - name: 语料生成物必须是最新的
+      - name: 生成物必须是最新的
         run: |
+          # 三份产物各有各的静默失败方式：
+          #   knowledge.json 过期 -> 用旧资料作答，页面毫无异常；
+          #   nodes.json 缺失/过期 -> 静态形态下「按需组课」直接报错；
+          #   core.js 的 COURSE 过期 -> 侧栏课表少章，进度分母不对。
           node tools/build-knowledge.js
-          if ! git diff --exit-code -- public/knowledge.json; then
-            echo "::error::knowledge/ 里改过内容，但 public/knowledge.json 没有重新生成。请本地运行 npm run build:knowledge 并提交产物。"
+          node tools/build-nodes.js
+          node tools/build-course.js
+          if ! git diff --exit-code -- public/frontend-build-agent/knowledge.json \
+                                       public/frontend-build-agent/nodes.json \
+                                       public/frontend-build-agent/core.js; then
+            echo "::error::knowledge/ 改过内容，但生成物没重新生成。请本地运行 npm run check:knowledge 并提交产物。"
             exit 1
           fi
 
@@ -45,6 +53,7 @@ jobs:
           test -f "$APP/core.js"
           test -f "$APP/client-backend.js"
           test -f "$APP/knowledge.json"
+          test -f "$APP/nodes.json"          # 静态形态组课依赖它
           echo "站点根：  $(ls public | tr '\n' ' ')"
           echo "应用目录：$(ls $APP | tr '\n' ' ')"
 

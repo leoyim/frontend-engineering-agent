@@ -219,6 +219,64 @@
     return { ok: true, state: core.publicState(loadState()), historyLength: 0 };
   }
 
+  /* ── 组课：与 server.js 的 /api/nodes、/api/plan 对应 ──────────────────
+     静态形态也要能用组课，否则「本地能生成路径、部署到 Pages 就没了」——
+     这个项目已经在这类分叉上吃过一次亏（分块规则两端各写一遍）。 */
+
+  let NODES = null;
+  let NODES_PROMISE = null;
+
+  function loadNodes() {
+    if (NODES) return Promise.resolve(NODES);
+    if (NODES_PROMISE) return NODES_PROMISE;
+    NODES_PROMISE = fetch('nodes.json', { cache: 'force-cache' })
+      .then((r) => {
+        if (!r.ok) throw new Error('nodes.json 拉取失败（HTTP ' + r.status + '）');
+        return r.json();
+      })
+      .then((d) => {
+        NODES = d;
+        return d;
+      })
+      .catch((e) => {
+        NODES_PROMISE = null;
+        throw e;
+      });
+    return NODES_PROMISE;
+  }
+
+  async function nodes() {
+    const d = await loadNodes();
+    return {
+      ok: true,
+      total: d.total || d.nodes.length,
+      domains: d.domains || {},
+      levels: d.levels || {},
+      nodes: (d.nodes || []).map((n) => ({
+        id: n.id, name: n.name, domain: n.domain, level: n.level, prereq: n.prereq,
+      })),
+    };
+  }
+
+  async function plan(opts) {
+    const d = await loadNodes();
+    return { ok: true, ...core.assemblePlan(d, opts || {}) };
+  }
+
+  /** 与 server.js 的 POST /api/mode 对应。 */
+  async function mode(opts) {
+    const state = loadState();
+    const notes = [];
+    if (opts && opts.plan) {
+      const r = core.assemblePlan(await loadNodes(), opts.plan);
+      notes.push(core.applyPlan(state, opts.plan, r));
+    } else {
+      notes.push(core.setCourseMode(state, (opts && opts.mode) || 'chapter'));
+    }
+    saveState(state);
+    return { ok: true, notes, state: core.publicState(state) };
+  }
+
   window.FBLocalBackend = {
     isLocal: true,
     bootstrap: bootstrap,
@@ -226,5 +284,8 @@
     saveConfig: saveConfig,
     testConfig: testConfig,
     reset: reset,
+    nodes: nodes,
+    plan: plan,
+    mode: mode,
   };
 })();

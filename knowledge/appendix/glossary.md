@@ -4,6 +4,136 @@
 
 ---
 
+## Web 基础与语义化
+
+**a11y tree（可访问性树 / accessibility tree）**
+浏览器在 DOM 之外**并行维护的第二棵树**，供辅助技术消费。节点是「角色 + 名字 + 状态」，**不是标签**。
+**来源**：标签经 HTML-AAM 映射为 role；可访问名按 W3C《Accessible Name and Description Computation》计算（关联 `label` 在该计算里优先级很高）。
+
+**可聚焦性（focusable area）**
+能被脚本或用户聚焦的元素集合。三个来源：原生可聚焦元素、`tabindex`、可编程聚焦。
+**与 tab 序的区别**：进入 **sequential focus navigation order**（tab 序列）是可聚焦性的**子集**，不是等价概念。
+
+**约束校验（Constraint Validation）**
+HTML Standard 定义的原生表单校验机制。
+**关键时机**：校验发生在 `submit` 事件**之前** —— 所以不能靠 JS 监听 `submit` 去"补校验"。
+`novalidate` 可整体关闭，因此**服务端必须重做校验**。
+
+**CLS（Cumulative Layout Shift，累积布局偏移）**
+布局稳定性指标。**计算公式**：影响面积比（impact fraction） × 移动距离比（distance fraction）。
+**为什么 `<img>` 的 `width` / `height` 是硬要求**：给了宽高比，浏览器才能在图片到达前预留正确空间。
+
+---
+
+## CSS 计算规则
+
+**层叠排序（Cascade Sorting Order）**
+决定「同一元素的多条冲突声明谁生效」的算法，四步：**来源 → 层 → 特异性 → 出现顺序**。
+
+**特异性（specificity）**
+**三元组（ID / class / type）按位比较**，不是「100 / 10 / 1 的分数」。
+**常见错误**：当成分数相加后，会得出「11 个 class 赢过 1 个 ID」——实际按位比较下 **ID 位一旦领先就不可追**。
+
+**层叠层（`@layer`）**
+在**特异性之前**生效的排序维度。低特异性的声明只要落在高优先级的层里，也能赢过高特异性的非分层声明。
+
+**层叠上下文（Stacking Context）**
+`z-index` 的**比较范围**。形成条件：根元素、`position` 非 `static` 且有 `z-index`、`opacity < 1`、`transform` / `filter` / `will-change`、`isolation: isolate` 等。
+**推论**：子元素的 `z-index` **无法穿越父级上下文** —— 这是「`z-index` 失效」的头号原因。
+**与合成层不等价**：层叠上下文是**绘制顺序**概念，合成层是**渲染性能**概念，两者不互相蕴含。
+
+**`min-width: auto`**
+flex / grid 子项的默认最小尺寸，**取内容尺寸**，与 `width` 无关。
+**推论**：它是 flex 布局下**内容溢出的头号来源**；修复是显式写 `min-width: 0`。
+
+**`1fr` 的真实含义**
+等价于 `minmax(auto, 1fr)`，因此**会被内容撑破**。要真正等分需写 `minmax(0, 1fr)`。
+
+**margin 折叠（Collapsing Margins）**
+相邻垂直外边距合并为较大者。**四种不折叠的例外**：建立了 BFC、flex / grid 子项、`float` 或绝对定位、中间有 `border` / `padding` 隔开。
+
+---
+
+## 语言机制
+
+**TDZ（Temporal Dead Zone，暂时性死区）**
+`let` / `const` 绑定从**进入作用域**到**初始化完成**之间的区间，此区间内访问抛 `ReferenceError`。
+**准确说法**：绑定**已存在但未初始化**，不是「不存在」。
+
+**词法环境（Lexical Environment）**
+标识符 → 绑定的映射记录，由外层引用串成链。
+**为什么需要**：它解释了「每次迭代环境」—— 循环体内 `let` 每轮迭代创建新的环境记录，`var` 不会。
+
+**抽象操作（Abstract Operation）**
+ECMA-262 中定义转换与语义的内部算法（如 `ToPrimitive` / `ToNumber`）。
+**它们不写在代码里，但决定一切隐式转换的结果。**
+
+**微任务（Microtask）**
+优先级高于任务的队列。**时机**：每个任务执行完后、浏览器取下一个任务前，**清空整个微任务队列**。
+**推论**：微任务里无限 `queueMicrotask` 会让页面无法渲染（活锁）。
+
+**实时绑定（Live Binding）**
+ESM 的导入是**对导出的绑定**，不是值的拷贝 —— 导出方后续改动对导入方可见。
+**对照**：CJS 的 `require` 拿到的是**值拷贝**，因此循环依赖下表现为 `undefined`。
+
+**渲染机会（Rendering Opportunity）**
+HTML Standard《Event loops》中 `update the rendering` 这一步。微任务清空后浏览器**按需**决定是否走它，走了才真正绘制。
+**推论**：主线程长任务里改样式**不会立刻上屏**。
+
+**强制同步布局（Forced Synchronous Layout）**
+在一次脚本执行中交替「读几何属性」与「写样式」，迫使渲染引擎反复提前计算布局。
+**代价**：每次读都触发一次同步重排，是循环里的性能杀手。
+
+---
+
+## 模块与包管理
+
+**ESM / CJS 的机制分野**
+ESM 的 `import` / `export` 是**语法层的静态声明**，可在解析期分析 → 能摇树；CJS 的 `require` 是**运行期的函数调用** → 只能保守处理整个模块。
+
+**双包危害（Dual Package Hazard）**
+同一个包被 ESM 与 CJS **各加载一份**，导致模块状态不共享。
+**成因**：`exports` 条件导出按环境分发不同文件；`type` 字段与文件扩展名共同决定「这个文件算哪种格式」。
+
+**幽灵依赖（Phantom Dependency）**
+代码里 `import lodash` 能跑，但 `package.json` 从未声明过它 —— 搭的是依赖提升的顺风车。
+**为什么危险**：一旦提升结构变化（换包管理器、改依赖层级）就崩。
+
+**内容寻址（Content-addressable Storage）**
+以内容哈希作为存储键。pnpm 的硬链接布局与 **Git 的对象模型**是同一个思路。
+**推论**：Git 里「改一行 → hash 变 → 快照变」，所以 `rebase` 会**改写历史**。
+
+**条件导出（Conditional Exports）**
+`package.json` 的 `exports` 按 `import` / `require` / `browser` / `node` / `types` 等条件分发不同文件。
+**注意**：`types` 条件的**顺序有语义** —— 排在 `require` / `import` 之后会被跳过。
+
+**SemVer 的「最左侧非零位」规则**
+`1.0.0` 起：主版本号变化 = 破坏性变更；`0.x.y` 阶段主版本号恒为 0，**次版本号才代表破坏性**。
+**推论**：`^0.2.3` 与 `^1.2.3` 的可接受区间语义不同。
+
+**lockfile 的边界**
+保证**同一包管理器**下的可复现安装。**形状由包管理器自己定义，不可跨包管理器互换**。
+
+**SemVer 与 lockfile 的分工**
+`package.json` 声明的是**可接受区间**，lockfile 记录的是**上次解析结果**。二者都不是"当前最新版本"。
+
+---
+
+## 类型工程化
+
+**检查与产出分离**
+类型检查（`tsc --noEmit`）与转译（SWC / esbuild）分成两条流水线。
+**为什么必须**：转译器**不做类型检查**，只跑构建会漏掉纯类型错误。
+
+**结构化类型（Structural Typing）**
+TS 按**结构**判断兼容，不按名义。
+**推论**：「类型只在编译期存在」—— 运行时没有任何痕迹，这是"类型过了但运行时报错"的根源。
+
+**Project References / `.tsbuildinfo`**
+大仓库的类型增量编译机制：把仓库切成互相引用的小项目，用 `.tsbuildinfo` 记录上次结果，`tsc --build` 只重编受影响的。
+
+---
+
 ## 构建基础
 
 **模块（Module）**

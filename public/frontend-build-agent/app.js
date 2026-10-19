@@ -1,5 +1,5 @@
 /* ══════════════════════════════════════════════════════════════
-   前端打包构建学习助手 · 前端逻辑
+   前端工程化学习助手 · 前端逻辑
    ────────────────────────────────────────────────────────────
    设计原则（与后端一致）：
    · 状态不寄生在对话历史：进度、待办、画像全部来自服务端 state，
@@ -12,6 +12,15 @@
 'use strict';
 
 const $ = (id) => document.getElementById(id);
+
+/**
+ * 领域代号 → 侧栏色带。10 个领域各一个颜色，和书稿的 10 个领域一一对应。
+ * 放在这里而不是从后端取：它纯属展示，取不到也不该让界面空着。
+ */
+const DOMAIN_BAND = {
+  D0: 'm1', D1: 'm2', D2: 'm3', D3: 'm4', D4: 'm5',
+  D5: 'm6', D6: 'm7', X1: 'm8', X2: 'm9', X3: 'm10',
+};
 
 /**
  * 把可以点击的 div/span 补成键盘可达控件。
@@ -565,6 +574,8 @@ function renderSidebar() {
   const p = STATE.progress;
 
   $('progress-fraction').textContent = `${p.completed.length} / ${p.total_sections}`;
+  // 侧栏「课程结构」表头的计数，和进度/画像表头保持一致（原本这个 span 从未被赋值）
+  $('course-count').textContent = String(STATE.course.length);
   $('progress-percent').textContent = p.percent + '%';
   // 用 scaleX 而不是 width：width 会触发布局重排，transform 走合成层
   $('progress-bar').style.transform = `scaleX(${p.percent / 100})`;
@@ -585,9 +596,9 @@ function renderSidebar() {
     if (s.module !== lastMod) {
       lastMod = s.module;
       const lbl = document.createElement('div');
-      // 模块色带按 M1~M4 编号取色，四个模块在长列表里才不会糊成一片
-      const modNo = (s.id.match(/^M(\d)/) || [])[1];
-      lbl.className = 'mod-label' + (modNo ? ' m' + modNo : '');
+      // 领域色带：10 个领域固定配色，长列表里才不会糊成一片。
+      // 早先按 M1~M4 取色（原书四模块），扩到 10 领域后改为按领域代号映射。
+      lbl.className = 'mod-label' + (DOMAIN_BAND[(s.id.match(/^(D\d|X\d)/) || [])[1]] ? ' ' + DOMAIN_BAND[(s.id.match(/^(D\d|X\d)/) || [])[1]] : '');
       lbl.textContent = s.module;
       list.appendChild(lbl);
     }
@@ -677,6 +688,16 @@ const serverBackend = {
   saveConfig: (patch) => api('/api/config', { method: 'POST', body: JSON.stringify(patch) }),
   testConfig: () => api('/api/config/test', { method: 'POST' }),
   reset: () => api('/api/reset', { method: 'POST' }),
+  // 组课：形状与 client-backend.js 的两个同名方法一致
+  nodes: () => api('/api/nodes'),
+  plan: (opts) => {
+    const q = new URLSearchParams();
+    if (opts.targets && opts.targets.length) q.set('targets', opts.targets.join(','));
+    if (opts.domains && opts.domains.length) q.set('domains', opts.domains.join(','));
+    if (opts.levels && opts.levels.length) q.set('levels', opts.levels.join(','));
+    if (opts.maxNodes) q.set('max', String(opts.maxNodes));
+    return api('/api/plan?' + q.toString());
+  },
 };
 
 let Backend = serverBackend;
@@ -991,11 +1012,119 @@ function setupGuide() {
   };
 }
 
+/**
+ * 切换课程模式 / 写入新计划。
+ *
+ * **切换时必须明确提示**（用户 2026-10-19 的要求）：两种模式的**分母不同**，
+ * 不提示的话使用者会以为进度丢了或坏了。所以这里：
+ *   ① 用后端返回的 notes 原样播报（它由 core 生成，含"已完成 N/M"，单一来源）；
+ *   ② 立刻重渲染侧栏，进度条、分母、课表同步换。
+ */
+async function switchMode(opts) {
+  let r;
+  try {
+    r = await Backend.mode(opts);
+  } catch (e) {
+    addMessage('error', '切换失败：' + e.message);
+    return null;
+  }
+  if (!r || !r.ok) {
+    addMessage('error', '切换失败：' + ((r && r.message) || '未知原因'));
+    return null;
+  }
+  STATE = r.state;
+  renderSidebar();
+  const notes = (r.notes || []).filter(Boolean);
+  if (notes.length) addMessage('system', notes.map((n) => '· ' + n).join('\n'));
+  return r;
+}
+
+/* ── 按需组课 ──────────────────────────────────────────────────────────
+   界面只负责「选范围」，剩下的交给内核的 assemblePlan：
+   前置闭包与拓扑排序必须由代码做，模型/用户只决定学哪一片。
+   这里刻意**不写回 STATE** —— 它是一条预览路径，进度口径仍以课程表为准，
+   否则「计划里的节点」和「课程表的章」会混成两套分母。 */
+async function setupPlan() {
+  const dlg = $('plan');
+  const domBox = $('plan-domains');
+  const lvBox = $('plan-levels');
+  const note = $('plan-note');
+  let meta = null;
+
+  async function fill() {
+    if (meta) return meta;
+    meta = await Backend.nodes();
+    domBox.innerHTML = '';
+    for (const [code, name] of Object.entries(meta.domains || {})) {
+      const l = document.createElement('label');
+      l.innerHTML = `<input type="checkbox" value="${code}"> ${code} ${escapeHtml(name)}`;
+      domBox.appendChild(l);
+    }
+    lvBox.innerHTML = '';
+    for (const [code, name] of Object.entries(meta.levels || {})) {
+      const l = document.createElement('label');
+      l.innerHTML = `<input type="checkbox" value="${code}"> ${code} ${escapeHtml(name)}`;
+      lvBox.appendChild(l);
+    }
+    return meta;
+  }
+
+  $('btn-plan').onclick = async () => {
+    note.textContent = '';
+    try {
+      await fill();
+    } catch (e) {
+      note.textContent = '节点数据没接上：' + e.message + '（先运行 npm run build:nodes）';
+    }
+    dlg.showModal();
+  };
+
+  $('btn-plan-close').onclick = () => dlg.close();
+
+  // 两个模式按钮：切章表是直接切；切计划时若还没有路径，直接把组课弹窗打开，
+  // 而不是先切过去留一个 0 节的空面板。
+  $('mode-chapter').onclick = () => switchMode({ mode: 'chapter' });
+  $('mode-plan').onclick = () => {
+    if (STATE && STATE.plan && STATE.plan.length) switchMode({ mode: 'plan' });
+    else { note.textContent = '还没有学习路径，先选个范围生成一条。'; dlg.showModal(); }
+  };
+
+  $('btn-plan-go').onclick = async () => {
+    const picked = (box) => [...box.querySelectorAll('input:checked')].map((i) => i.value);
+    const spec = {
+      domains: picked(domBox),
+      levels: picked(lvBox),
+      maxNodes: Number($('plan-max').value) || 0,
+    };
+    note.textContent = '生成中…';
+    const r = await switchMode({ plan: spec });
+    if (!r) { note.textContent = '生成失败，见对话里的提示'; return; }
+    dlg.close();
+
+    const secs = (r.state.course || []);
+    const head = `**已切换到计划模式**：${spec.domains.length ? spec.domains.join(' / ') : '全部领域'}`
+      + ` · ${spec.levels.length ? spec.levels.join(' / ') : '全部层级'}`
+      + ` · 上限 ${spec.maxNodes || '不限'}`;
+    const lines = secs.map((x, i) => `${i + 1}. \`${x.id}\` ${x.title}${x.level ? '（' + x.level + '）' : ''}`);
+    let tail = `\n\n共 **${secs.length} 节**。**进度条的分母已随之改变** —— `
+      + '计划模式的完成记录是独立的，切回章表时原来的进度还在。';
+    const st = r.state.plan && r.state.plan.stats;
+    if (r.state.plan && r.state.plan.truncated) {
+      tail += st && st.needed > st.total
+        ? `\n\n⚠️ 这条路径完整需要 **${st.needed} 节**，超过你设的 ${spec.maxNodes}：前置不能删，所以照实给全。`
+        : `\n\n上限 ${spec.maxNodes} 已生效：裁掉了较靠后的目标，前置完整。`;
+    }
+    addMessage('system', head + '\n\n' + lines.join('\n') + tail);
+    $('messages').scrollTop = $('messages').scrollHeight;
+  };
+}
+
 function init() {
   renderPresets();
   renderQuick();
   setupNavDrawer();
   setupGuide();
+  setupPlan();
   setupComposerHeight();
   renderMermaid(document.body);
 
@@ -1104,7 +1233,7 @@ function greet() {
     return;
   }
 
-  let text = '我是**前端打包构建学习助手**。把打包构建拆成 4 个模块、22 个小节，一节一讲，讲完必问，批改后等你确认才往下走。\n\n';
+  let text = '我是**前端工程化学习助手**。按 10 个领域、42 章组织：从写第一个页面到 AI 在工程流程里的位置，一章一讲，讲完必问，批改后等你确认才往下走。\n\n';
 
   if (!p.completed.length && !cur) {
     // 首访者需要的不是「进度 0%」，而是「我现在该做哪一步」。

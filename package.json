@@ -2,14 +2,16 @@
   "name": "frontend-build-tutor-app",
   "version": "1.0.0",
   "private": true,
-  "description": "前端打包构建学习助手 —— 分节互动教学的智能体应用（本地优先实现）",
+  "description": "前端工程化学习助手 —— 分节互动教学的智能体应用（本地优先实现）",
   "type": "commonjs",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
     "build:knowledge": "node tools/build-knowledge.js",
-    "check:knowledge": "node tools/build-knowledge.js && git diff --exit-code -- public/frontend-build-agent/knowledge.json"
+    "check:knowledge": "node tools/build-course.js && node tools/build-nodes.js && node tools/build-knowledge.js && git diff --exit-code -- public/frontend-build-agent/knowledge.json public/frontend-build-agent/core.js public/frontend-build-agent/nodes.json",
+    "build:course": "node tools/build-course.js",
+    "build:nodes": "node tools/build-nodes.js"
   },
   "engines": {
     "node": ">=20"

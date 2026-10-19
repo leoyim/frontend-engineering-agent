@@ -1,5 +1,5 @@
 /**
- * 前端打包构建学习助手 —— 本地优先的服务端
+ * 前端工程化学习助手 —— 本地优先的服务端
  *
  * 设计要点：
  *  1. 零第三方依赖，只用 Node 内置模块。避免装包失败导致应用跑不起来。
@@ -49,7 +49,8 @@ const {
   MAX_HISTORY,
   defaultState, applyPatch, extractStatePatch,
   validateConfig, normalizeConfig, configReady,
-  buildIndex, retrieve,
+  buildIndex, retrieve, assemblePlan, prereqClosure,
+  applyPlan, setCourseMode, courseSections, courseProgress,
   buildSystemPrompt, callLLM, publicConfig, publicState,
 } = core;
 
@@ -232,6 +233,18 @@ function loadKnowledge() {
   if (INDEX) return INDEX;
   INDEX = buildIndex(readJson(KNOWLEDGE_FILE, []));
   return INDEX;
+}
+
+/**
+ * 结构化节点数据（179 个知识点 + 前置依赖），由 tools/build-nodes.js 生成。
+ * 它不进检索索引 —— 地图的用途是**给组课读结构**，不是让模型检索表格。
+ */
+const NODES_FILE = path.join(PUBLIC_DIR, APP_DIR, 'nodes.json');
+let NODES = null;
+
+function loadNodes() {
+  if (!NODES) NODES = readJson(NODES_FILE, { nodes: [], order: [], domains: {} });
+  return NODES;
 }
 
 /**
@@ -418,6 +431,56 @@ const server = http.createServer(async (req, res) => {
       });
     }
 
+    /**
+     * 组课：把「学哪些节点」交给调用方（模型或界面），
+     * 「前置闭包 + 拓扑排序」由内核保证 —— 见 core.js 的 assemblePlan 注释。
+     */
+    if (p === '/api/plan' && req.method === 'GET') {
+      const list = (k) => (url.searchParams.get(k) || '').split(',').map((s) => s.trim()).filter(Boolean);
+      const plan = assemblePlan(loadNodes(), {
+        targets: list('targets'),
+        domains: list('domains'),
+        levels: list('levels'),
+        maxNodes: Number(url.searchParams.get('max')) || 0,
+      });
+      return sendJson(res, 200, { ok: true, ...plan });
+    }
+
+    /** 节点清单：给界面做选择器，也便于排查"某个节点为什么没进计划"。 */
+    if (p === '/api/nodes' && req.method === 'GET') {
+      const d = loadNodes();
+      return sendJson(res, 200, {
+        ok: true,
+        total: d.total || d.nodes.length,
+        domains: d.domains || {},
+        levels: d.levels || {},
+        nodes: (d.nodes || []).map((n) => ({
+          id: n.id, name: n.name, domain: n.domain, level: n.level, prereq: n.prereq,
+        })),
+      });
+    }
+
+    /**
+     * 切换课程模式（界面的开关走这里，模型走状态补丁）。
+     * body:
+     *   { mode: 'chapter' }                       —— 切回固定章表
+     *   { plan: {...} }  / { plan: {...}, mode:'plan' } —— 组一条新路径并切过去
+     *   { mode: 'plan' }                          —— 已有路径时直接切
+     */
+    if (p === '/api/mode' && req.method === 'POST') {
+      const body = await readBody(req);
+      const state = loadState();
+      const notes = [];
+      if (body.plan && typeof body.plan === 'object') {
+        const r = assemblePlan(loadNodes(), body.plan);
+        notes.push(applyPlan(state, body.plan, r));
+      } else {
+        notes.push(setCourseMode(state, String(body.mode || 'chapter')));
+      }
+      saveState(state);
+      return sendJson(res, 200, { ok: true, notes, state: publicState(state) });
+    }
+
     if (p === '/api/chat' && req.method === 'POST') {
       const body = await readBody(req);
       const message = String(body.message || '').trim();
@@ -458,6 +521,13 @@ const server = http.createServer(async (req, res) => {
 
       const { clean, patch, raw: patchRaw } = extractStatePatch(raw);
       const notes = applyPatch(state, patch);
+      // 组课请求由**程序**执行：模型只说"学哪些"，闭包与排序在这里算
+      if (patch && patch.plan) {
+        const r = assemblePlan(loadNodes(), patch.plan);
+        notes.push(core.applyPlan(state, patch.plan, r));
+      } else if (patch && patch.course_mode) {
+        notes.push(core.setCourseMode(state, patch.course_mode));
+      }
       // 区分「模型压根没吐状态块」与「吐了但格式坏了」—— 两者表现都是进度不动，
       // 但排查方向完全不同，必须在返回值里能分辨。
       if (patchRaw === null) {
@@ -516,7 +586,7 @@ const server = http.createServer(async (req, res) => {
 server.listen(PORT, () => {
   const chunks = loadKnowledge().chunks.length;
   console.log('');
-  console.log('  前端打包构建学习助手  已启动');
+  console.log('  前端工程化学习助手  已启动');
   console.log('  ──────────────────────────────────────');
   // 打印的是应用的完整地址（含子路径）—— 直接复制就能打开。
   // 站点根会跳转到这里，但没必要让人先看一次跳转。
