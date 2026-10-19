@@ -38,16 +38,16 @@ jobs:
           node tools/build-knowledge.js
           node tools/build-nodes.js
           node tools/build-course.js
-          if ! git diff --exit-code -- public/frontend-agent/knowledge.json \
-                                       public/frontend-agent/nodes.json \
-                                       public/frontend-agent/core.js; then
+          if ! git diff --exit-code -- public/frontend-engineering-agent/knowledge.json \
+                                       public/frontend-engineering-agent/nodes.json \
+                                       public/frontend-engineering-agent/core.js; then
             echo "::error::knowledge/ 改过内容，但生成物没重新生成。请本地运行 npm run check:knowledge 并提交产物。"
             exit 1
           fi
 
       - name: 静态站点自检
         run: |
-          APP=public/frontend-agent
+          APP=public/frontend-engineering-agent
           test -f public/index.html          # 站点根：跳转页
           test -f "$APP/index.html"          # 应用本体
           test -f "$APP/core.js"
@@ -68,15 +68,15 @@ jobs:
       # （或反过来），得到的是「能打开但进不去应用」的站点，而且不会有任何报错。
       - name: 站点根跳转必须指向应用目录
         run: |
-          grep -q 'url=\./frontend-agent/' public/index.html \
-            || { echo "::error::public/index.html 的跳转目标不是 ./frontend-agent/"; exit 1; }
+          grep -q 'url=\./frontend-engineering-agent/' public/index.html \
+            || { echo "::error::public/index.html 的跳转目标不是 ./frontend-engineering-agent/"; exit 1; }
           echo "跳转目标正确"
 
       # 相对路径是子路径部署的前提。绝对路径（以 / 开头）在本部署形态下
       # 会指向域名根而不是应用目录，页面能开、但样式和脚本会 404。
       - name: 应用静态资源必须用相对路径
         run: |
-          APP=public/frontend-agent
+          APP=public/frontend-engineering-agent
           if grep -nE '(src|href)="/' "$APP/index.html"; then
             echo "::error::$APP/index.html 里出现以 / 开头的绝对路径，子路径下会 404"
             exit 1

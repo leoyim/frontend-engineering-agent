@@ -6,24 +6,24 @@
 <title>前端工程化学习助手</title>
 
 <!--
-  站点根只是一个入口，应用本体在 ./frontend-agent/ 下。
+  站点根只是一个入口，应用本体在 ./frontend-engineering-agent/ 下。
 
-  为什么不把应用放在根上：需求要的地址是 app.leoyim.cn/frontend-agent。
+  为什么不把应用放在根上：需求要的地址是 app.leoyim.cn/frontend-engineering-agent。
   GitHub Pages 一旦给仓库配上自定义域名，URL 里的「仓库名」那一段就没了，
   站点会整体平移到域名根 —— 于是无法既用自定义域名、又靠 Pages 自动获得这条路径。
-  这里的做法是把路径变成真实的目录结构：应用就住在 frontend-agent/ 里，
+  这里的做法是把路径变成真实的目录结构：应用就住在 frontend-engineering-agent/ 里，
   根上放这一个跳转页。这样两种地址都能进，且应用实体只有一份。
 
   用 meta refresh 而不是 JS 跳转：脚本被禁用或加载失败时同样有效。
 
   改这个目录结构时，下面这些地方要一起改（都是硬编码路径）：
-    tools/build-knowledge.js  输出到 public/frontend-agent/knowledge.json
+    tools/build-knowledge.js  输出到 public/frontend-engineering-agent/knowledge.json
     server.js                 静态目录、知识库文件、/api 前缀
     .github/workflows/*.yml   构建产物与自检断言
 -->
-<meta http-equiv="refresh" content="0; url=./frontend-agent/" />
-<link rel="canonical" href="https://app.leoyim.cn/frontend-agent/" />
-<link rel="icon" href="./frontend-agent/logo.svg" type="image/svg+xml" />
+<meta http-equiv="refresh" content="0; url=./frontend-engineering-agent/" />
+<link rel="canonical" href="https://app.leoyim.cn/frontend-engineering-agent/" />
+<link rel="icon" href="./frontend-engineering-agent/logo.svg" type="image/svg+xml" />
 <meta name="robots" content="noindex" />
 <style>
   :root { color-scheme: light dark; }
@@ -45,6 +45,6 @@
 </style>
 </head>
 <body>
-  <p>正在前往 <a href="./frontend-agent/">前端工程化学习助手</a>…</p>
+  <p>正在前往 <a href="./frontend-engineering-agent/">前端工程化学习助手</a>…</p>
 </body>
 </html>

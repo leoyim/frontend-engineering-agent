@@ -19,7 +19,7 @@ const path = require('node:path');
 
 const ROOT = path.join(__dirname, '..');
 const CH_DIR = path.join(ROOT, 'knowledge', 'chapters');
-const CORE = path.join(ROOT, 'public', 'frontend-agent', 'core.js');
+const CORE = path.join(ROOT, 'public', 'frontend-engineering-agent', 'core.js');
 
 const BEGIN = '/* <COURSE:BEGIN> 由 tools/build-course.js 生成，勿手改 */';
 const END = '/* <COURSE:END> */';

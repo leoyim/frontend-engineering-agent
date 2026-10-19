@@ -28,13 +28,13 @@ const PUBLIC_DIR = path.join(ROOT, 'public');
  *
  * 静态托管（GitHub Pages）配上自定义域名后，URL 里的仓库名那一段会消失，
  * 站点整体平移到域名根 —— 没法既用自定义域名、又靠 Pages 自动拿到
- * /frontend-agent/ 这条路径。所以路径改成真实的目录结构：
- * 应用住在 public/frontend-agent/，站点根只放一个跳转页。
+ * /frontend-engineering-agent/ 这条路径。所以路径改成真实的目录结构：
+ * 应用住在 public/frontend-engineering-agent/，站点根只放一个跳转页。
  *
- * 本地服务保持同一形态（下面会把 /frontend-agent/api/* 也挂上），
+ * 本地服务保持同一形态（下面会把 /frontend-engineering-agent/api/* 也挂上），
  * 这样「子路径下相对探测后端」这类只在线上才暴露的问题，本地就能碰到。
  */
-const APP_DIR = 'frontend-agent';
+const APP_DIR = 'frontend-engineering-agent';
 const APP_BASE = '/' + APP_DIR;
 
 /**
@@ -216,7 +216,7 @@ const displayPath = (p) => path.relative(ROOT, p).replace(/\\/g, '/');
 const KNOWLEDGE_FILE = path.join(PUBLIC_DIR, APP_DIR, 'knowledge.json');
 
 /**
- * 语料的唯一来源是 public/frontend-agent/knowledge.json
+ * 语料的唯一来源是 public/frontend-engineering-agent/knowledge.json
  * —— 由 tools/build-knowledge.js
  * 从 knowledge/ 的 Markdown 生成，服务端与浏览器读的是同一份。
  *
@@ -319,7 +319,7 @@ function readBody(req) {
 }
 
 function serveStatic(req, res, urlPath) {
-  // 目录以 index.html 收尾：站点根 / 与应用目录 /frontend-agent/
+  // 目录以 index.html 收尾：站点根 / 与应用目录 /frontend-engineering-agent/
   // 各自落到自己的首页，不必为每个目录单独写一条路由。
   let rel = urlPath.replace(/^\/+/, '');
   if (rel === '' || rel.endsWith('/')) rel += 'index.html';
@@ -348,10 +348,10 @@ function serveStatic(req, res, urlPath) {
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost');
 
-  // 应用挂在 /frontend-agent/ 下，而前端用相对路径探测后端
-  // （fetch('api/bootstrap')），落到这里就是 /frontend-agent/api/bootstrap。
+  // 应用挂在 /frontend-engineering-agent/ 下，而前端用相对路径探测后端
+  // （fetch('api/bootstrap')），落到这里就是 /frontend-engineering-agent/api/bootstrap。
   // 所以只对 API 去掉这层前缀 —— 静态文件本身就是按该目录结构摆放的，不改写。
-  // 不做成「去掉前缀后再统一路由」：那样 /frontend-agent/ 会被归一成 /，
+  // 不做成「去掉前缀后再统一路由」：那样 /frontend-engineering-agent/ 会被归一成 /，
   // 而 / 要服务的是站点根的跳转页，不是应用本身。
   let p = url.pathname;
   if (p.startsWith(APP_BASE + '/api/')) p = p.slice(APP_BASE.length);

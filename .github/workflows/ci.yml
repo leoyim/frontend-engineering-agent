@@ -23,7 +23,7 @@ jobs:
       - name: 语法检查
         run: |
           node --check server.js
-          node --check public/frontend-agent/app.js
+          node --check public/frontend-engineering-agent/app.js
       # 语料现在是仓库内的数据元，缺了应用会静默退化成「检索不到任何资料」
       - name: 知识库必须随仓库一起提交
         run: |
@@ -36,8 +36,8 @@ jobs:
       - name: 语料生成物必须是最新的
         run: |
           node tools/build-knowledge.js
-          if ! git diff --exit-code -- public/frontend-agent/knowledge.json; then
-            echo "::error::knowledge/ 改过但 public/frontend-agent/knowledge.json 没重新生成。请运行 npm run build:knowledge 并提交。"
+          if ! git diff --exit-code -- public/frontend-engineering-agent/knowledge.json; then
+            echo "::error::knowledge/ 改过但 public/frontend-engineering-agent/knowledge.json 没重新生成。请运行 npm run build:knowledge 并提交。"
             exit 1
           fi
       - name: 起服务并打健康检查
